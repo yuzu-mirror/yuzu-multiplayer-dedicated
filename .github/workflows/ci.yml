@@ -1,0 +1,97 @@
+name: "Yuzu Rooms Docker Image CI"
+
+on:
+  push:
+    branches: ["*"]
+    tags: ["*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs: {}
+  schedule:
+    - cron: "0 7 * * 0"
+
+env:
+  REGISTRY_IMAGE: yuzuemu/yuzu-multiplayer-dedicated
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Docker Image Label
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: type=raw,value=latest,enable={{is_default_branch}}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker BuildX
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        if: (github.ref == 'refs/heads/master') && (github.repository == 'yuzu-emu/yuzu-multiplayer-dedicated')
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          platforms: ${{ matrix.platform }}
+          push: ${{ (github.ref == 'refs/heads/master') && (github.repository == 'yuzu-emu/yuzu-multiplayer-dedicated') }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          cache_name="digests-${{ matrix.platform }}"
+          echo "CACHE_NAME=${cache_name/\//-}" >> $GITHUB_ENV
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.CACHE_NAME }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+  upload:
+    runs-on: ubuntu-latest
+    if: (github.ref == 'refs/heads/master') && (github.repository == 'yuzu-emu/yuzu-multiplayer-dedicated')
+    needs:
+      - build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-*
+          path: /tmp/digests
+          merge-multiple: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create Docker Image Label
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: type=raw,value=latest,enable={{is_default_branch}}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}

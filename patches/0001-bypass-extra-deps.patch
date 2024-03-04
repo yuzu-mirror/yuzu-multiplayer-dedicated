@@ -1,0 +1,61 @@
+From 275b6282c3c9bd14cbaa7fe13c0be0c342a80c55 Mon Sep 17 00:00:00 2001
+From: liushuyu <liushuyu011@gmail.com>
+Date: Mon, 15 Aug 2022 23:32:31 -0600
+Subject: [PATCH] build: bypass extra dependency checks
+
+---
+ externals/CMakeLists.txt                   | 2 +-
+ src/video_core/CMakeLists.txt              | 6 +++---
+ src/video_core/host_shaders/CMakeLists.txt | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/externals/CMakeLists.txt b/externals/CMakeLists.txt
+index 9eebc7d65..a66f4373b 100644
+--- a/externals/CMakeLists.txt
++++ b/externals/CMakeLists.txt
+@@ -139,7 +139,7 @@ endif()
+ 
+ # FFMpeg
+ if (YUZU_USE_BUNDLED_FFMPEG)
+-    add_subdirectory(ffmpeg)
++    #add_subdirectory(ffmpeg)
+     set(FFmpeg_PATH "${FFmpeg_PATH}" PARENT_SCOPE)
+     set(FFmpeg_LDFLAGS "${FFmpeg_LDFLAGS}" PARENT_SCOPE)
+     set(FFmpeg_LIBRARIES "${FFmpeg_LIBRARIES}" PARENT_SCOPE)
+diff --git a/src/video_core/CMakeLists.txt b/src/video_core/CMakeLists.txt
+index cf9266d54..bef40788c 100644
+--- a/src/video_core/CMakeLists.txt
++++ b/src/video_core/CMakeLists.txt
+@@ -290,9 +290,9 @@ create_target_directory_groups(video_core)
+ target_link_libraries(video_core PUBLIC common core)
+ target_link_libraries(video_core PUBLIC glad shader_recompiler stb bc_decoder)
+ 
+-if (YUZU_USE_BUNDLED_FFMPEG AND NOT (WIN32 OR ANDROID))
+-    add_dependencies(video_core ffmpeg-build)
+-endif()
++#if (YUZU_USE_BUNDLED_FFMPEG AND NOT (WIN32 OR ANDROID))
++#    add_dependencies(video_core ffmpeg-build)
++#endif()
+ 
+ target_include_directories(video_core PRIVATE ${FFmpeg_INCLUDE_DIR})
+ target_link_libraries(video_core PRIVATE ${FFmpeg_LIBRARIES})
+diff --git a/src/video_core/host_shaders/CMakeLists.txt b/src/video_core/host_shaders/CMakeLists.txt
+index 6b912027f..a65022962 100644
+--- a/src/video_core/host_shaders/CMakeLists.txt
++++ b/src/video_core/host_shaders/CMakeLists.txt
+@@ -68,9 +68,9 @@ set(SHADER_FILES
+ )
+ 
+ find_program(GLSLANGVALIDATOR "glslangValidator")
+-if ("${GLSLANGVALIDATOR}" STREQUAL "GLSLANGVALIDATOR-NOTFOUND")
+-    message(FATAL_ERROR "Required program `glslangValidator` not found.")
+-endif()
++#if ("${GLSLANGVALIDATOR}" STREQUAL "GLSLANGVALIDATOR-NOTFOUND")
++#    message(FATAL_ERROR "Required program `glslangValidator` not found.")
++#endif()
+ 
+ set(GLSL_FLAGS "")
+ set(SPIR_V_VERSION "spirv1.3")
+-- 
+2.42.0
+

@@ -41,7 +41,7 @@ RUN apt-get update && apt-get -y full-upgrade && \
 COPY . /root/build-files
 
 RUN --mount=type=cache,id=ccache,target=/root/.ccache \
-    git clone --depth 1000 -j4 --recursive https://github.com/yuzu-emu/yuzu-mainline.git /root/yuzu-mainline && \
+    git clone --depth 1000 -j4 --recursive https://github.com/yuzu-mirror/yuzu-mainline.git /root/yuzu-mainline && \
     cd /root/yuzu-mainline && /root/build-files/.ci/build.sh
 
 FROM rootfs-prep AS sliced-deps
